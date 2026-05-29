@@ -1,0 +1,9 @@
+# Mac
+.DS_Store
+
+# Secrets - protect everywhere in the repo
+.env
+*.env
+
+# IntelliJ - root level
+.idea/
