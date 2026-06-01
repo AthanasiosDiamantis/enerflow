@@ -7,4 +7,4 @@ heatpump:
   host: 192.168.178.138
   port: 8214
   password: ${HEATPUMP_PASSWORD}
-  reconnect-delay:seconds: 30
+  reconnect-delay-seconds: 30
