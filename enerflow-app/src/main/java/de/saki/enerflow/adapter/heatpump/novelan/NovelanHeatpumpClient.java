@@ -27,8 +27,9 @@ public class NovelanHeatpumpClient extends WebSocketClient {
     private static final Set<String> CATEGORIES_OF_INTEREST = Set.of(
             "Temperaturen",
             "Betriebsstunden",
-            "Anlagestatus",
-            "Energiemonitor");
+            "Anlagenstatus",
+            "Energiemonitor",
+            "Betriebsart");
 
     private final String password;
 
