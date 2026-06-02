@@ -1,6 +1,11 @@
 spring:
   application:
     name: enerflow-app
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 
 # Heat pump connection settings
 heatpump:
@@ -8,3 +13,8 @@ heatpump:
   port: 8214
   password: ${HEATPUMP_PASSWORD}
   reconnect-delay-seconds: 30
+
+logging:
+  level:
+    de.saki.enerflow: DEBUG
+    org.java_websocket: DEBUG
