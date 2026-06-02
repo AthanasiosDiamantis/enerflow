@@ -1,0 +1,17 @@
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: enerflow-postgres
+    environment:
+      POSTGRES_DB: enerflow
+      POSTGRES_USER: enerflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - enerflow-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  enerflow-postgres-data:
