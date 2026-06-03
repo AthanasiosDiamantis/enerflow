@@ -1,5 +1,6 @@
 package de.saki.enerflow.adapter.heatpump.novelan;
 
+import de.saki.enerflow.core.service.HeatpumpSnapshotService;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft_6455;
 import org.java_websocket.handshake.ServerHandshake;
@@ -12,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * WebSocket client for the Novelan heat pump (Helox 5, WRP 2.0).
@@ -24,6 +26,7 @@ public class NovelanHeatpumpClient extends WebSocketClient {
     private static final Logger log = LoggerFactory.getLogger(NovelanHeatpumpClient.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Categories we want to read from the heat pump
     private static final Set<String> CATEGORIES_OF_INTEREST = Set.of(
             "Temperaturen",
             "Betriebsstunden",
@@ -32,14 +35,21 @@ public class NovelanHeatpumpClient extends WebSocketClient {
             "Betriebsart");
 
     private final String password;
+    private final HeatpumpSnapshotService snapshotService;
 
-    public NovelanHeatpumpClient(URI serverUri, String password) {
+    // Tracks how many GET commands were sent per REFRESH cycle
+    private final AtomicInteger sentGetCount = new AtomicInteger(0);
+
+    public NovelanHeatpumpClient(URI serverUri,
+                                 String password,
+                                 HeatpumpSnapshotService snapshotService) {
         // with Draft_6455 we can specify the protocol Lux_WS, because the heatpump expects the Lux_WS protocol
         super(serverUri, new Draft_6455(
                 Collections.emptyList(), // no extensions
                 Collections.singletonList(new Protocol("Lux_WS")) // only subprotocol Lux_WS
         ));
         this.password = password;
+        this.snapshotService = snapshotService;
     }
 
     @Override
@@ -64,7 +74,6 @@ public class NovelanHeatpumpClient extends WebSocketClient {
                 case "values" -> handleValues(root);
                 default -> log.warn("Unknown message type: {}", type);
             }
-
         } catch (Exception e) {
             log.error("Error parsing message: {}", e.getMessage(), e);
         }
@@ -72,8 +81,11 @@ public class NovelanHeatpumpClient extends WebSocketClient {
 
     private void handleNavigation(JsonNode root) {
         log.info("Navigation received - searching for categories of interest...");
-        JsonNode items = root.get("items");
-        searchAndFetch(items);
+        sentGetCount.set(0);
+        searchAndFetch(root.get("items"));
+        snapshotService.setExpectedBlocks(sentGetCount.get());
+        log.info("Sent {} GET commands, expecting {} content blocks",
+                sentGetCount.get(), sentGetCount.get());
     }
 
     private void searchAndFetch(JsonNode items) {
@@ -88,6 +100,7 @@ public class NovelanHeatpumpClient extends WebSocketClient {
             if (CATEGORIES_OF_INTEREST.contains(name)) {
                 log.info("Found category: '{}' - sending GET;{}", name, id);
                 send("GET;" + id);
+                sentGetCount.incrementAndGet();
             }
 
             // Recurse into sub-items
@@ -97,13 +110,7 @@ public class NovelanHeatpumpClient extends WebSocketClient {
 
     private void handleContent(JsonNode root) {
         log.info("Content received:");
-        try{
-            log.info("\n{}",
-                    objectMapper.writerWithDefaultPrettyPrinter()
-                            .writeValueAsString(root));
-        } catch (Exception e){
-            log.error("Error formatting content: {}", e.getMessage());
-        }
+        snapshotService.addContentBlock(root);
     }
 
     private void handleValues(JsonNode root) {
