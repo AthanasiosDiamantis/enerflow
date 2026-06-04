@@ -1,6 +1,7 @@
 package de.saki.enerflow.config;
 
 import de.saki.enerflow.adapter.heatpump.novelan.NovelanHeatpumpClient;
+import de.saki.enerflow.adapter.heatpump.novelan.NovelanSnapshotMapper;
 import de.saki.enerflow.core.service.HeatpumpSnapshotService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +23,13 @@ public class HeatpumpConfig {
 
     private final HeatpumpProperties properties;
     private final HeatpumpSnapshotService snapshotService;
+    private final NovelanSnapshotMapper mapper;
 
     public HeatpumpConfig(HeatpumpProperties properties,
-                          HeatpumpSnapshotService snapshotService) {
+                          HeatpumpSnapshotService snapshotService, NovelanSnapshotMapper mapper) {
         this.properties = properties;
         this.snapshotService = snapshotService;
+        this.mapper = mapper;
     }
 
     @Bean
@@ -38,7 +41,7 @@ public class HeatpumpConfig {
         log.info("Connecting to heat pump at {}", uri);
 
         NovelanHeatpumpClient client = new NovelanHeatpumpClient(
-                uri, properties.getPassword(), snapshotService
+                uri, properties.getPassword(), snapshotService, mapper
         );
 
         try {

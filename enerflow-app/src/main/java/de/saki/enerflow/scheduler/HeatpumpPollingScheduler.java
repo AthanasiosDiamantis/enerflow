@@ -37,6 +37,13 @@ public class HeatpumpPollingScheduler {
             return;
         }
 
+        // Temporary test: log current temperatures via HeatGenerator interface
+        if (heatpumpClient.isAvailable()) {
+            log.info("HeatGenerator status: ist={}°C, soll={}°C, available=true",
+                    heatpumpClient.getCurrentTemperatureCelsius(),
+                    heatpumpClient.getSetpointTemperatureCelsius());
+        }
+
         log.info("Sending REFRESH to heat pump...");
         heatpumpClient.send("REFRESH");
     }

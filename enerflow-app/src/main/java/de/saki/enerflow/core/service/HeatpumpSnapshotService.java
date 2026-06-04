@@ -3,6 +3,7 @@ package de.saki.enerflow.core.service;
 import de.saki.enerflow.adapter.heatpump.novelan.NovelanSnapshotMapper;
 import de.saki.enerflow.core.domain.HeatpumpSnapshot;
 import de.saki.enerflow.core.repository.HeatpumpSnapshotRepository;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,12 @@ public class HeatpumpSnapshotService {
      */
     private final List<JsonNode> pendingBlocks = new ArrayList<>();
     private int expectedBlocks = 0;
+
+    // Last known values for HeatGenerator interface
+    @Getter
+    private volatile double lastWarmwasserIst  = 0.0;
+    @Getter
+    private volatile double lastWarmwasserSoll = 0.0;
 
     public HeatpumpSnapshotService(
             NovelanSnapshotMapper mapper,
@@ -78,6 +85,11 @@ public class HeatpumpSnapshotService {
         }
 
         repository.save(snapshot);
+
+        // Update last known values for HeatGenerator interface
+        if (snapshot.getWarmwasserIst()  != null) lastWarmwasserIst  = snapshot.getWarmwasserIst();
+        if (snapshot.getWarmwasserSoll() != null) lastWarmwasserSoll = snapshot.getWarmwasserSoll();
+
         log.info("Heatpump snapshot saved: " +
                         "warmwasser-ist={}°C, warmwasser-soll={}°C, aussentemp={}°C",
                 snapshot.getWarmwasserIst(),
