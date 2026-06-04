@@ -23,6 +23,7 @@ heatpump:
   port: 8214
   password: ${HEATPUMP_PASSWORD}
   reconnect-delay-seconds: 30
+  polling-interval-ms: 60000
 
 logging:
   level:

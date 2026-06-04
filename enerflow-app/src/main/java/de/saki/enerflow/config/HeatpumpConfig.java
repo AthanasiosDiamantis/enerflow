@@ -49,7 +49,7 @@ public class HeatpumpConfig {
             // Pump needs ~2s to process login before accepting REFRESH
             Thread.sleep(2000);
 
-            log.info("Sending REFRESH...");
+            log.info("Initial REFRESH sent by config - scheduler takes over from here");
             client.send("REFRESH");
 
         } catch (InterruptedException e) {
