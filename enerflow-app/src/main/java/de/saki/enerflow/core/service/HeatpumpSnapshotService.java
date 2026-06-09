@@ -59,12 +59,8 @@ public class HeatpumpSnapshotService {
      * @param block the JSON content block from the heat pump
      */
     public void addContentBlock(JsonNode block) {
-        String blockName = block.get("name").asString();
-        log.debug("Content block received: {} ({}/{})",
-                blockName,
-                pendingBlocks.size() + 1,
-                expectedBlocks);
         pendingBlocks.add(block);
+        log.debug("Content block received ({}/{})", pendingBlocks.size(), expectedBlocks);
 
         if(pendingBlocks.size() >= expectedBlocks) {
             flushAndSave();
@@ -74,7 +70,6 @@ public class HeatpumpSnapshotService {
     /**
      * Builds a complete HeatpumpSnapshot from all pending blocks,
      * persists it and clears the pending list.
-     * Called after all GET responses have been received.
      */
     public void flushAndSave() {
         HeatpumpSnapshot snapshot = new HeatpumpSnapshot();

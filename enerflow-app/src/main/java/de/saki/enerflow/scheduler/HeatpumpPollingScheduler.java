@@ -37,28 +37,20 @@ public class HeatpumpPollingScheduler {
             return;
         }
 
-        // Temporary test: log current temperatures via HeatGenerator interface
-        if (heatpumpClient.isAvailable()) {
-            log.info("HeatGenerator status: ist={}°C, soll={}°C, available=true",
-                    heatpumpClient.getCurrentTemperatureCelsius(),
-                    heatpumpClient.getSetpointTemperatureCelsius());
-        }
-
         log.info("Sending REFRESH to heat pump...");
         heatpumpClient.send("REFRESH");
     }
-
     private void reconnect() {
-
         try {
             heatpumpClient.reconnectBlocking();
             log.info("Reconnect successful - waiting for login...");
-
-            // FIXME: replace with event-driven aproach in production
+            // TODO: replace with event-driven approach
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             log.error("Reconnect interrupted: {}", e.getMessage());
             Thread.currentThread().interrupt();
         }
     }
+
+
 }

@@ -27,6 +27,10 @@ public class NovelanSnapshotMapper {
      * @param root the JSON content block from the heat pump
      */
     public void mapContentBlock(HeatpumpSnapshot snapshot, JsonNode root) {
+        if(!root.has("name") || !root.has("items")) {
+            return;
+        }
+
         String blockName = root.get("name").asString();
         JsonNode items = root.get("items");
 
@@ -69,7 +73,7 @@ public class NovelanSnapshotMapper {
     }
 
     private void mapBetriebsstundenItem(HeatpumpSnapshot snapshot, String name, String value) {
-        // Novelan uses "Betriebstunden WP" instead of "Betriebsstunden WP", leak of one "s"
+        // Note: Novelan uses "Betriebstunden WP" (missing one 's') — intentional match
         if ("Betriebstunden WP".equals(name)) {
             snapshot.setBetriebsstundenWp(parseInteger(value));
         }
@@ -105,28 +109,6 @@ public class NovelanSnapshotMapper {
             log.warn("Could not parse integer from value: '{}'", value);
             return null;
         }
-    }
-
-    /**
-     * Extracts the writable setpoint ID from the Einstellungen-Temperaturen block.
-     * The ID is dynamic and changes with every REFRESH.
-     *
-     * @param root the JSON content block
-     * @return the ID of "TDI-Solltemp" or null if not found
-     */
-    public String extractWarmwasserSollId(JsonNode root) {
-        JsonNode items = root.get("items");
-        if (items == null || !items.isArray()) return null;
-
-        for (JsonNode item : items) {
-            String name = item.get("name").asString();
-            if ("TDI-Solltemp".equals(name)) {
-                String id = item.get("id").asString();
-                log.debug("Found TDI-Solltemp ID: {}", id);
-                return id;
-            }
-        }
-        return null;
     }
 
 }
