@@ -56,13 +56,13 @@ public class MyUplinkTokenService {
 
     private void fetchAndCacheToken() {
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        formData.add("grant_type", "clienat_credentials");
+        formData.add("grant_type", "client_credentials");
         formData.add("client_id", properties.getClientId());
         formData.add("client_secret", properties.getClientSecret());
         formData.add("scope", "READSYSTEM WRITESYSTEM");
 
         TokenResponse response = restClient.post()
-                .uri(properties.getBaseUrl() + "/oaouth/token")
+                .uri(properties.getBaseUrl() + "/oauth/token")
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .body(formData)
                 .retrieve()
