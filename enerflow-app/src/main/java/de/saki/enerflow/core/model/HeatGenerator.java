@@ -7,27 +7,23 @@ package de.saki.enerflow.core.model;
 public interface HeatGenerator {
 
     /**
-     *
-     * @return the current actual water temparature in degrees Celsius
+     * @return the current actual hot water temperature in degrees Celsius
      */
-    double getCurrentTemperatureCelsius();
+    double getHotWaterTemperatureCelsius();
 
     /**
-     *
-     * @return the current target (setpoint) temperature in degrees Celsius
+     * @return the current hot water setpoint temperature in degrees Celsius
      */
-    double getSetpointTemperatureCelsius();
+    double getHotWaterSetpointCelsius();
 
     /**
-     *
      * @param targetTemperatureCelsius the desired setpoint temperature in degrees Celsius
-     * @throws IllegalArgumentException if the value is outside the allowed safety range of temperature
+     * @throws IllegalArgumentException if the value is outside the allowed safety range
      */
-    void setSetpointTemperatureCelsius(double targetTemperatureCelsius);
+    void setHotWaterSetpoint(double targetTemperatureCelsius);
 
     /**
-     *
-     * @return true it the device is reachable and delivering valid data.
+     * @return true if the device is reachable and delivering valid data
      */
     boolean isAvailable();
 }

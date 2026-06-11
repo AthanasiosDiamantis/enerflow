@@ -136,19 +136,19 @@ public class NovelanHeatpumpClient extends WebSocketClient implements HeatGenera
     // --- HeatGenerator Interface Implementation ---
 
     @Override
-    public double getCurrentTemperatureCelsius() {
+    public double getHotWaterTemperatureCelsius() {
         // Returns the last known actual temperature from the snapshot service
         return snapshotService.getLastWarmwasserIst();
     }
 
     @Override
-    public double getSetpointTemperatureCelsius() {
+    public double getHotWaterSetpointCelsius() {
         // Returns the last known setpoint from the snapshot service
         return snapshotService.getLastWarmwasserSoll();
     }
 
     @Override
-    public void setSetpointTemperatureCelsius(double targetTemperatureCelsius) {
+    public void setHotWaterSetpoint(double targetTemperatureCelsius) {
         // Setpoint control is handled via REST API (heatpump24.com)
         throw new UnsupportedOperationException(
                 "Setpoint control via WebSocket is not supported - use REST adapter");
