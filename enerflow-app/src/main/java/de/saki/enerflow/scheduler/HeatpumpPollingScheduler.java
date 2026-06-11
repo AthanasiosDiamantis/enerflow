@@ -3,6 +3,7 @@ package de.saki.enerflow.scheduler;
 import de.saki.enerflow.adapter.heatpump.novelan.NovelanHeatpumpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
  * @author saki
  */
 @Component
+@Profile("!test") // scheduler is not needed in tests
 public class HeatpumpPollingScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(HeatpumpPollingScheduler.class);

@@ -1,0 +1,28 @@
+# Test profile — disables external dependencies
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+# Disable heat pump WebSocket connection durring tests
+heatpump:
+  host: localhost
+  port: 8214
+  password: test
+  reconnect-delay-seconds: 30
+  polling-interval-ms: 60000
+
+# myUplink dummy values for test context
+myuplink:
+  base-url: http://localhost
+  client-id: test-client
+  client-secret: test-secret
+  device-id: test-device
