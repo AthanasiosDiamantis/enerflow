@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.net.URI;
 
@@ -17,6 +18,7 @@ import java.net.URI;
  * @author saki
  */
 @Configuration
+@Profile("!test") // config is not needed in tests
 public class HeatpumpConfig {
 
     private static final Logger log = LoggerFactory.getLogger(HeatpumpConfig.class);
