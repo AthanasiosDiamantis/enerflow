@@ -29,3 +29,8 @@ logging:
   level:
     de.saki.enerflow: DEBUG
     org.java_websocket: DEBUG
+
+# sonnenBatterie local REST API settings
+sonnen:
+  host: ${SONNEN_HOST}
+  api-token: ${SONNEN_API_TOKEN}
