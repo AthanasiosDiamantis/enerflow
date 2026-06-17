@@ -34,3 +34,7 @@ logging:
 sonnen:
   host: ${SONNEN_HOST}
   api-token: ${SONNEN_API_TOKEN}
+
+# EnerFlow automation scheduler settings
+enerflow:
+  evaluation-interval-ms: 60000
