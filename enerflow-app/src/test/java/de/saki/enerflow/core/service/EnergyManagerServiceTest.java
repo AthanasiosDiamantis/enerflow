@@ -69,14 +69,29 @@ class EnergyManagerServiceTest {
     }
 
     @Test
-    @DisplayName("Disabled state: no action taken even if conditions are met")
-    void evaluateAndAct_disabled_doesNothing() {
+    @DisplayName("Disabled state with no active boost: no action taken")
+    void evaluateAndAct_disabledNoBoostActive_doesNothing() {
         state.setEnabled(false);
+        state.setBoostActive(false);
 
         service.evaluateAndAct();
 
         verify(heatGeneratorWriter, never()).setHotWaterSetpoint(anyDouble());
         verify(stateRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Disabled while boost was active: setpoint is restored")
+    void evaluateAndAct_disabledWhileBoostActive_restoresSetpoint() {
+        state.setEnabled(false);
+        state.setBoostActive(true);
+        state.setLastKnownSetpoint(48.0);
+        when(heatGeneratorWriter.isAvailable()).thenReturn(true);
+
+        service.evaluateAndAct();
+
+        verify(heatGeneratorWriter).setHotWaterSetpoint(48.0);
+        assertThat(state.isBoostActive()).isFalse();
     }
 
     @Test

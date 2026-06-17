@@ -68,8 +68,14 @@ public class EnergyManagerService {
         EnerflowState state = loadState();
 
         if (!state.isEnabled()) {
-            log.debug("EnerFlow is disabled — skipping evaluation");
             consecutiveConditionMetCount = 0;
+
+            if (state.isBoostActive()) {
+                log.info("EnerFlow disabled while boost was active — restoring setpoint");
+                deactivateBoost(state);
+            } else {
+                log.debug("EnerFlow is disabled — skipping evaluation");
+            }
             return;
         }
 
