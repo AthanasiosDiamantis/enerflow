@@ -21,6 +21,8 @@ public class DeviceConfigService {
     public static final String KEY_BATTERY_SOC_THRESHOLD = "battery.soc.threshold.percent";
     public static final String KEY_HOTWATER_SETPOINT_ELEVATED = "hotwater.setpoint.elevated.celsius";
     public static final String KEY_HOTWATER_SETPOINT_NORMAL = "hotwater.setpoint.normal.celsius";
+    public static final String KEY_TANK_VOLUME_LITERS = "hotwater.tank.volume.liters";
+    public static final String KEY_SNAPSHOT_RETENTION_DAYS = "data.retention.snapshot.days";
 
     private final DeviceConfigRepository repository;
 
@@ -42,6 +44,14 @@ public class DeviceConfigService {
 
     public double getHotwaterSetpointNormalCelsius() {
         return getDouble(KEY_HOTWATER_SETPOINT_NORMAL, 48.0);
+    }
+
+    public double getHotwaterTankVolumeLiters() {
+        return getDouble(KEY_TANK_VOLUME_LITERS, 300.0);
+    }
+
+    public int getSnapshotRetentionDays() {
+        return getInt(KEY_SNAPSHOT_RETENTION_DAYS, 730);
     }
 
     // -------------------------------------------------------------------------

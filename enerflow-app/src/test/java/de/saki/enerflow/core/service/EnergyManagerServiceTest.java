@@ -5,6 +5,10 @@ import de.saki.enerflow.core.model.EnergySource;
 import de.saki.enerflow.core.model.EnergyStorage;
 import de.saki.enerflow.core.model.HeatGenerator;
 import de.saki.enerflow.core.repository.EnerflowStateRepository;
+import de.saki.enerflow.core.domain.ControlAction;
+import de.saki.enerflow.core.domain.ControlLog;
+import de.saki.enerflow.core.repository.ControlLogRepository;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +48,9 @@ class EnergyManagerServiceTest {
     @Mock
     private EnerflowStateRepository stateRepository;
 
+    @Mock
+    private ControlLogRepository controlLogRepository;
+
     private EnergyManagerService service;
     private EnerflowState state;
 
@@ -51,7 +58,7 @@ class EnergyManagerServiceTest {
     void setUp() {
         service = new EnergyManagerService(
                 energyStorage, energySource, heatGeneratorReader, heatGeneratorWriter,
-                deviceConfigService, stateRepository);
+                deviceConfigService, stateRepository, controlLogRepository);
 
         state = new EnerflowState();
         state.setId(1);
@@ -206,5 +213,46 @@ class EnergyManagerServiceTest {
         when(energySource.isAvailable()).thenReturn(true);
         when(energyStorage.getStateOfChargePercent()).thenReturn(50);
         when(energySource.getSurplusWatts()).thenReturn(100);
+    }
+
+    @Test
+    @DisplayName("Boost activation logs a RAISE entry to control_log")
+    void evaluateAndAct_boostActivated_logsRaiseAction() {
+        givenConditionsAreMet();
+        when(heatGeneratorReader.isAvailable()).thenReturn(true);
+        when(heatGeneratorWriter.isAvailable()).thenReturn(true);
+        when(heatGeneratorReader.getHotWaterSetpointCelsius()).thenReturn(48.0);
+        when(deviceConfigService.getHotwaterTankVolumeLiters()).thenReturn(300.0);
+
+        service.evaluateAndAct(); // cycle 1
+        service.evaluateAndAct(); // cycle 2 - activates
+
+        ArgumentCaptor<ControlLog> captor = ArgumentCaptor.forClass(ControlLog.class);
+        verify(controlLogRepository).save(captor.capture());
+
+        ControlLog logged = captor.getValue();
+        assertThat(logged.getAction()).isEqualTo(ControlAction.RAISE);
+        assertThat(logged.getOldSetpointCelsius()).isEqualTo(48.0);
+        assertThat(logged.getNewSetpointCelsius()).isEqualTo(55.0);
+        assertThat(logged.getBerechnungKwh()).isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("Boost deactivation logs a RESET entry to control_log")
+    void evaluateAndAct_boostDeactivated_logsResetAction() {
+        state.setBoostActive(true);
+        state.setLastKnownSetpoint(48.0);
+        when(heatGeneratorWriter.isAvailable()).thenReturn(true);
+        when(deviceConfigService.getHotwaterTankVolumeLiters()).thenReturn(300.0);
+
+        givenConditionsAreNotMet();
+        service.evaluateAndAct();
+
+        ArgumentCaptor<ControlLog> captor = ArgumentCaptor.forClass(ControlLog.class);
+        verify(controlLogRepository).save(captor.capture());
+
+        ControlLog logged = captor.getValue();
+        assertThat(logged.getAction()).isEqualTo(ControlAction.RESET);
+        assertThat(logged.getBerechnungKwh()).isLessThan(0);
     }
 }

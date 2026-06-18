@@ -14,6 +14,8 @@ import java.util.List;
 @Repository
 public interface HeatpumpSnapshotRepository extends JpaRepository<HeatpumpSnapshot, Long> {
 
+    long deleteByTimestampBefore(LocalDateTime threshold);
+
     List<HeatpumpSnapshot> findByTimestampBetween(
             LocalDateTime from,
             LocalDateTime to);
