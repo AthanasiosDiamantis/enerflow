@@ -69,6 +69,15 @@ public class SonnenBatteryAdapter implements EnergyStorage, EnergySource {
         return status.productionWatts() - status.consumptionWatts() - batteryChargingWatts;
     }
 
+    /**
+     * Exposes the raw status response for components that need the full
+     * data set (e.g. {@link SonnenBatterySnapshotService}), not just the
+     * generic EnergyStorage/EnergySource view.
+     */
+    public SonnenStatusResponse fetchCurrentStatus() {
+        return fetchStatus();
+    }
+
     // -------------------------------------------------------------------------
     // Shared availability check
     // -------------------------------------------------------------------------

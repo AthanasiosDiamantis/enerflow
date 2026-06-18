@@ -1,9 +1,12 @@
 package de.saki.enerflow.core.service;
 
+import de.saki.enerflow.core.domain.ControlAction;
+import de.saki.enerflow.core.domain.ControlLog;
 import de.saki.enerflow.core.domain.EnerflowState;
 import de.saki.enerflow.core.model.EnergySource;
 import de.saki.enerflow.core.model.EnergyStorage;
 import de.saki.enerflow.core.model.HeatGenerator;
+import de.saki.enerflow.core.repository.ControlLogRepository;
 import de.saki.enerflow.core.repository.EnerflowStateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,10 @@ import java.time.LocalDateTime;
  * via {@code @Qualifier} rather than relying on a single polymorphic
  * {@link HeatGenerator} bean.
  *
+ * <p>Every setpoint change (RAISE/RESET) is recorded as an append-only
+ * {@link ControlLog} entry, including the estimated thermal energy (kWh)
+ * diverted into the hot water tank (AP3.2).
+ *
  * @author saki
  */
 @Service
@@ -42,6 +49,7 @@ public class EnergyManagerService {
     private final HeatGenerator heatGeneratorWriter;
     private final DeviceConfigService deviceConfigService;
     private final EnerflowStateRepository stateRepository;
+    private final ControlLogRepository controlLogRepository;
 
     // In-memory flapping-protection counter — intentionally not persisted (see AP2.1 discussion)
     private int consecutiveConditionMetCount = 0;
@@ -51,13 +59,15 @@ public class EnergyManagerService {
                                 @Qualifier("novelanHeatpumpClient") HeatGenerator heatGeneratorReader,
                                 @Qualifier("myUplinkRestAdapter") HeatGenerator heatGeneratorWriter,
                                 DeviceConfigService deviceConfigService,
-                                EnerflowStateRepository stateRepository) {
+                                EnerflowStateRepository stateRepository,
+                                ControlLogRepository controlLogRepository) {
         this.energyStorage = energyStorage;
         this.energySource = energySource;
         this.heatGeneratorReader = heatGeneratorReader;
         this.heatGeneratorWriter = heatGeneratorWriter;
         this.deviceConfigService = deviceConfigService;
         this.stateRepository = stateRepository;
+        this.controlLogRepository = controlLogRepository;
     }
 
     /**
@@ -141,6 +151,8 @@ public class EnergyManagerService {
         state.setLastKnownSetpoint(currentSetpoint);
         state.setLastUpdated(LocalDateTime.now());
         stateRepository.save(state);
+
+        logControlAction(ControlAction.RAISE, currentSetpoint, elevatedSetpoint);
     }
 
     private void deactivateBoost(EnerflowState state) {
@@ -159,10 +171,35 @@ public class EnergyManagerService {
 
         heatGeneratorWriter.setHotWaterSetpoint(restoreSetpoint);
 
+        // Assumption: the setpoint while boost was active still matches the
+        // configured elevated value (no re-read from hardware here to avoid
+        // an extra, potentially failing, dependency on heatGeneratorReader).
+        double assumedOldSetpoint = deviceConfigService.getHotwaterSetpointElevatedCelsius();
+        logControlAction(ControlAction.RESET, assumedOldSetpoint, restoreSetpoint);
+
         state.setBoostActive(false);
         state.setLastKnownSetpoint(null);
         state.setLastUpdated(LocalDateTime.now());
         stateRepository.save(state);
+    }
+
+    private void logControlAction(ControlAction action, double oldSetpointCelsius, double newSetpointCelsius) {
+        double deltaCelsius = newSetpointCelsius - oldSetpointCelsius;
+        double tankVolumeLiters = deviceConfigService.getHotwaterTankVolumeLiters();
+        double kwh = HotWaterEnergyCalculator.calculateKwh(tankVolumeLiters, deltaCelsius);
+
+        ControlLog entry = new ControlLog();
+        entry.setTimestamp(LocalDateTime.now());
+        entry.setAction(action);
+        entry.setOldSetpointCelsius(oldSetpointCelsius);
+        entry.setNewSetpointCelsius(newSetpointCelsius);
+        entry.setBerechnungKwh(kwh);
+        entry.setTriggeredBy("SYSTEM");
+
+        controlLogRepository.save(entry);
+
+        log.debug("Control log entry saved: action={}, {}°C -> {}°C, {} kWh",
+                action, oldSetpointCelsius, newSetpointCelsius, kwh);
     }
 
     private EnerflowState loadState() {
