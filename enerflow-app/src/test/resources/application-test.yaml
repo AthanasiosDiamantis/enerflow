@@ -26,3 +26,7 @@ myuplink:
   client-id: test-client
   client-secret: test-secret
   device-id: test-device
+
+enerflow:
+  security:
+    default-admin-password: test-admin-password

@@ -38,3 +38,5 @@ sonnen:
 # EnerFlow automation scheduler settings
 enerflow:
   evaluation-interval-ms: 60000
+  security:
+    default-admin-password: ${ENERFLOW_DEFAULT_ADMIN_PASSWORD}
