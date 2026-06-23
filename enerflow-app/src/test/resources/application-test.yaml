@@ -26,3 +26,9 @@ myuplink:
   client-id: test-client
   client-secret: test-secret
   device-id: test-device
+
+enerflow:
+  security:
+    default-admin-password: test-admin-password
+    jwt-secret: test-secret-key-that-is-long-enough-for-hs256-algorithm
+    jwt-expiration-ms: 3600000
