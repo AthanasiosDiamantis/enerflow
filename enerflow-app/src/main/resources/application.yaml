@@ -40,3 +40,5 @@ enerflow:
   evaluation-interval-ms: 60000
   security:
     default-admin-password: ${ENERFLOW_DEFAULT_ADMIN_PASSWORD}
+    jwt-secret: ${ENERFLOW_JWT_SECRET}
+    jwt-expiration-ms: ${ENERFLOW_JWT_EXPIRATION_MS}
