@@ -41,10 +41,10 @@ public class EnerflowStateController {
     }
 
     /**
-     * Toggles EnerFlow automation on/off. If turning off while a boost is
-     * currently active, the boost itself is not retroactively undone here —
-     * the next scheduler cycle in {@code EnergyManagerService} will detect
-     * the disabled state and handle restoring the setpoint normally.
+     * Toggles EnerFlow automation on/off. Accessible to all authenticated users
+     * (ROLE_USER, ROLE_MANAGER, ROLE_ADMIN) — per US-04-02, the Hausbesitzer
+     * (ROLE_USER) must be able to activate/deactivate EnerFlow.
+     * Role-restricted endpoints (e.g. device configuration) follow in Sprint 4.
      */
     @PatchMapping("/toggle")
     public EnerflowStateDto toggle() {
