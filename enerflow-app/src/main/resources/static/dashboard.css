@@ -1,0 +1,164 @@
+/* =============================================================
+   EnerFlow Dashboard – Custom Styles & Animations
+   Complements Bootstrap 5 dark theme.
+   ============================================================= */
+
+/* ── Base ────────────────────────────────────────────────────── */
+body {
+    min-height: 100vh;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Override Bootstrap's text-muted for dark backgrounds ────── */
+.text-muted {
+    color: #a0a8b4 !important;
+}
+
+/* ── Navbar ──────────────────────────────────────────────────── */
+.navbar {
+    height: 52px;
+}
+
+/* ── Cards ───────────────────────────────────────────────────── */
+.card {
+    transition: border-color 0.4s ease;
+}
+
+.card-header {
+    color: #d0d6de !important;
+    font-weight: 600;
+}
+
+/* ── Card labels (small descriptor above the big number) ─────── */
+.card-body .small,
+.card-body small {
+    color: #b0b8c4 !important;
+    font-weight: 500;
+}
+
+/* ── Battery color states ────────────────────────────────────── */
+.battery-green  { border-color: #198754 !important; color: #2dbd76 !important; }
+.battery-yellow { border-color: #ffc107 !important; color: #ffc107 !important; }
+.battery-red    { border-color: #dc3545 !important; color: #ff6b6b !important; }
+
+/* ── Grid direction colors ───────────────────────────────────── */
+.grid-feedin  { border-color: #198754 !important; }
+.grid-drawing { border-color: #dc3545 !important; }
+
+/* ── SVG Flow Lines ──────────────────────────────────────────── */
+.flow-line {
+    transition: stroke 0.4s ease;
+}
+
+.flow-line-active {
+    stroke: #ffc107;
+    animation: flowDash 1.2s linear infinite;
+}
+
+.flow-line-battery-charge {
+    stroke: #198754;
+    animation: flowDash 1.2s linear infinite;
+}
+
+.flow-line-battery-discharge {
+    stroke: #dc3545;
+    animation: flowDash 1.2s linear infinite reverse;
+}
+
+.flow-line-grid-feedin {
+    stroke: #198754;
+    animation: flowDash 1.2s linear infinite;
+}
+
+.flow-line-grid-drawing {
+    stroke: #dc3545;
+    animation: flowDash 1.2s linear infinite reverse;
+}
+
+@keyframes flowDash {
+    from { stroke-dashoffset: 20; }
+    to   { stroke-dashoffset: 0;  }
+}
+
+/* ── Heat pump pulse animations (US-01-02) ───────────────────── */
+@keyframes pulseOrange {
+    0%   { stroke: #fd7e14; stroke-width: 2; }
+    50%  { stroke: #ffc107; stroke-width: 4; }
+    100% { stroke: #fd7e14; stroke-width: 2; }
+}
+
+@keyframes pulseRed {
+    0%   { stroke: #dc3545; stroke-width: 2; }
+    50%  { stroke: #ff6b6b; stroke-width: 4; }
+    100% { stroke: #dc3545; stroke-width: 2; }
+}
+
+.heatpump-pulse-orange {
+    animation: pulseOrange 1.5s ease-in-out infinite;
+}
+
+.heatpump-pulse-red {
+    animation: pulseRed 1s ease-in-out infinite;
+}
+
+/* ── Freshness indicator ─────────────────────────────────────── */
+.freshness-fresh { background-color: #198754 !important; }
+.freshness-stale { background-color: #dc3545 !important; }
+
+/* ── Toggle switch ───────────────────────────────────────────── */
+.form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+/* ── Savings card ────────────────────────────────────────────── */
+.border-success .card-header {
+    color: #2dbd76 !important;
+}
+
+.border-success .card-body .small,
+.border-success .card-body small {
+    color: #c8d6c8 !important;
+}
+
+/* Savings bottom line (Strompreis) */
+#electricityPrice {
+    color: #e0e6ed !important;
+    font-weight: 600;
+}
+
+/* ── Heat pump card temperatures ─────────────────────────────── */
+#hotWaterTempActual  { color: #5bc8f5 !important; }
+#hotWaterTempSetpoint { color: #e0e6ed !important; }
+#heatPumpStatus {
+    color: #a0a8b4 !important;
+    font-size: 0.85rem;
+}
+
+/* ── EnerFlow toggle label ───────────────────────────────────── */
+.form-check-label {
+    color: #c8d0d8 !important;
+}
+
+/* ── EnerFlow control card description text ──────────────────── */
+#enerflowToggle + label + .text-muted,
+.card-body .text-muted.text-center.small {
+    color: #8a94a0 !important;
+}
+
+/* ── Navbar texts ────────────────────────────────────────────── */
+#lastUpdateLabel {
+    color: #8a94a0 !important;
+    font-size: 0.8rem;
+}
+
+/* ── SVG text contrast ───────────────────────────────────────── */
+#energyFlowSvg text {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Responsive tweaks ───────────────────────────────────────── */
+@media (max-width: 576px) {
+    .fs-4 { font-size: 1.1rem !important; }
+    #energyFlowSvg { max-height: 180px; }
+}

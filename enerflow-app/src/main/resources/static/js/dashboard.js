@@ -1,0 +1,464 @@
+/* =============================================================
+   EnerFlow Dashboard – Vanilla JS
+   Responsibilities:
+     1. JWT lifecycle (login modal, logout, token storage)
+     2. Poll GET /api/dashboard/status every 10 seconds
+     3. Update all DOM elements and SVG animations
+     4. Handle EnerFlow toggle switch
+   ============================================================= */
+
+'use strict';
+
+// ── Constants ─────────────────────────────────────────────────
+const API_STATUS_URL   = '/api/dashboard/status';
+const API_LOGIN_URL    = '/api/auth/login';
+const API_TOGGLE_URL   = '/api/enerflow/toggle';
+const POLL_INTERVAL_MS = 10_000;
+const TOKEN_KEY        = 'enerflow_jwt';
+
+// ── State ──────────────────────────────────────────────────────
+let pollTimer      = null;
+let toggleInFlight = false; // prevents double-click on toggle
+
+// ── DOM references ─────────────────────────────────────────────
+const loginModal       = new bootstrap.Modal(document.getElementById('loginModal'));
+const loginBtn         = document.getElementById('loginBtn');
+const logoutBtn        = document.getElementById('logoutBtn');
+const loginUsername    = document.getElementById('loginUsername');
+const loginPassword    = document.getElementById('loginPassword');
+const loginError       = document.getElementById('loginError');
+
+// Metric cards
+const elPvW            = document.getElementById('pvProductionW');
+const elPvKw           = document.getElementById('pvProductionKw');
+const elBatPercent     = document.getElementById('batteryChargePercent');
+const elBatStatus      = document.getElementById('batteryStatus');
+const elBatCard        = document.getElementById('batteryCard');
+const elBatCardLabel   = document.getElementById('batteryCardLabel');
+const elConsumptionW   = document.getElementById('consumptionW');
+const elGridW          = document.getElementById('gridFeedInW');
+const elGridDir        = document.getElementById('gridDirection');
+const elGridCard       = document.getElementById('gridCard');
+const elGridCardLabel  = document.getElementById('gridCardLabel');
+
+// Heat pump card
+const elHpActual       = document.getElementById('hotWaterTempActual');
+const elHpSetpoint     = document.getElementById('hotWaterTempSetpoint');
+const elHpStatus       = document.getElementById('heatPumpStatus');
+const elBoostBadge     = document.getElementById('boostBadge');
+
+// EnerFlow toggle
+const elToggle         = document.getElementById('enerflowToggle');
+const elToggleLabel    = document.getElementById('enerflowToggleLabel');
+
+// Savings
+const elSavedKwh       = document.getElementById('savedKwhToday');
+const elSavedEuro      = document.getElementById('savedEuroToday');
+const elShowers        = document.getElementById('possibleShowersToday');
+const elPrice          = document.getElementById('electricityPrice');
+const elPriceInput   = document.getElementById('electricityPriceInput');
+const elSavePriceBtn = document.getElementById('savePriceBtn');
+const elPriceSaveMsg = document.getElementById('priceSaveMsg');
+const elPriceLastSaved = document.getElementById('priceLastSaved');
+
+// Navbar
+const elFreshness      = document.getElementById('freshnessIndicator');
+const elLastUpdate     = document.getElementById('lastUpdateLabel');
+
+// SVG elements
+const elSvgPvW         = document.getElementById('svgPvW');
+const elSvgConsW       = document.getElementById('svgConsumptionW');
+const elSvgGridW       = document.getElementById('svgGridW');
+const elSvgSoc         = document.getElementById('svgSoc');
+const elSvgHpTemp      = document.getElementById('svgHpTemp');
+const elSvgHpStatus    = document.getElementById('svgHpStatus');
+const elHeatpumpBorder = document.getElementById('heatpumpBorder');
+const elBatteryBorder  = document.getElementById('batteryBorder');
+const arrowPvHouse     = document.getElementById('arrowPvHouse');
+const arrowPvHouseHead = document.getElementById('arrowPvHouseHead');
+const arrowGrid        = document.getElementById('arrowGrid');
+const arrowGridHead    = document.getElementById('arrowGridHead');
+const arrowBattery     = document.getElementById('arrowBattery');
+const arrowHeatpump    = document.getElementById('arrowHeatpump');
+const arrowHeatpumpHead= document.getElementById('arrowHeatpumpHead');
+
+// =============================================================
+// 1. JWT LIFECYCLE
+// =============================================================
+
+function getToken() {
+    return localStorage.getItem(TOKEN_KEY);
+}
+
+function saveToken(token) {
+    localStorage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken() {
+    localStorage.removeItem(TOKEN_KEY);
+}
+
+function authHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+    };
+}
+
+// ── Login ──────────────────────────────────────────────────────
+loginBtn.addEventListener('click', async () => {
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value.trim();
+
+    if (!username || !password) {
+        showLoginError('Bitte Benutzername und Passwort eingeben.');
+        return;
+    }
+
+    try {
+        const resp = await fetch(API_LOGIN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (!resp.ok) {
+            const body = await resp.json().catch(() => ({}));
+            showLoginError(body.message || 'Anmeldung fehlgeschlagen.');
+            return;
+        }
+
+        const data = await resp.json();
+        saveToken(data.token);
+        loginError.classList.add('d-none');
+        loginModal.hide();
+        startPolling();
+
+    } catch (e) {
+        showLoginError('Server nicht erreichbar.');
+    }
+});
+
+// Allow Enter key in password field
+loginPassword.addEventListener('keydown', e => {
+    if (e.key === 'Enter') loginBtn.click();
+});
+
+function showLoginError(msg) {
+    loginError.textContent = msg;
+    loginError.classList.remove('d-none');
+}
+
+// ── Logout ─────────────────────────────────────────────────────
+logoutBtn.addEventListener('click', () => {
+    stopPolling();
+    clearToken();
+    resetAllDisplays();
+    loginUsername.value = '';
+    loginPassword.value = '';
+    loginModal.show();
+});
+
+// =============================================================
+// 2. POLLING
+// =============================================================
+
+function startPolling() {
+    fetchAndUpdate();                               // immediate first call
+    pollTimer = setInterval(fetchAndUpdate, POLL_INTERVAL_MS);
+}
+
+function stopPolling() {
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
+}
+
+async function fetchAndUpdate() {
+    try {
+        const resp = await fetch(API_STATUS_URL, { headers: authHeaders() });
+
+        if (resp.status === 401) {
+            // Token expired – force re-login
+            stopPolling();
+            clearToken();
+            resetAllDisplays();
+            loginModal.show();
+            return;
+        }
+
+        if (!resp.ok) {
+            console.error('Dashboard API error:', resp.status);
+            markStale();
+            return;
+        }
+
+        const data = await resp.json();
+        updateDashboard(data);
+
+    } catch (e) {
+        console.error('Fetch failed:', e);
+        markStale();
+    }
+}
+
+// =============================================================
+// 3. DOM UPDATE
+// =============================================================
+
+function updateDashboard(d) {
+
+    // ── PV ────────────────────────────────────────────────────
+    elPvW.textContent  = formatWatts(d.pvProductionW);
+    elPvKw.textContent = (d.pvProductionW / 1000).toFixed(2) + ' kW';
+    elSvgPvW.textContent = formatWatts(d.pvProductionW);
+
+    // ── Battery ───────────────────────────────────────────────
+    const soc = d.batteryChargePercent;
+    elBatPercent.textContent = soc + ' %';
+    elSvgSoc.textContent     = soc + '%';
+
+    // Color
+    ['battery-green', 'battery-yellow', 'battery-red'].forEach(c =>
+        elBatCard.classList.remove(c));
+    const colorClass = 'battery-' + d.batteryColorCode;
+    elBatCard.classList.add(colorClass);
+    elBatCardLabel.className = 'small mb-1 ' + colorClass;
+    elBatPercent.className   = 'fs-4 fw-bold ' + colorClass;
+
+    // SVG battery border
+    elBatteryBorder.setAttribute('stroke',
+        d.batteryColorCode === 'green'  ? '#198754' :
+            d.batteryColorCode === 'yellow' ? '#ffc107' : '#dc3545');
+
+    // Charging / discharging status text
+    elBatStatus.textContent =
+        d.batteryCharging    ? '↑ Lädt' :
+            d.batteryDischarging ? '↓ Entlädt' : 'Ruhezustand';
+
+    // SVG battery arrow
+    arrowBattery.className.baseVal = 'flow-line ' + (
+        d.batteryCharging    ? 'flow-line-battery-charge' :
+            d.batteryDischarging ? 'flow-line-battery-discharge' : '');
+
+    // ── Consumption ───────────────────────────────────────────
+    elConsumptionW.textContent    = formatWatts(d.consumptionW);
+    elSvgConsW.textContent        = formatWatts(d.consumptionW);
+
+    // ── Grid ──────────────────────────────────────────────────
+    const grid = d.gridFeedInW;
+    elGridW.textContent = formatWatts(Math.abs(grid));
+    elSvgGridW.textContent = formatWatts(Math.abs(grid));
+
+    elGridCard.classList.remove('grid-feedin', 'grid-drawing');
+    if (grid > 0) {
+        elGridCard.classList.add('grid-feedin');
+        elGridCardLabel.textContent = '⚡ Netz';
+        elGridDir.textContent       = '↑ Einspeisung';
+        elGridW.className           = 'fs-4 fw-bold text-success';
+        arrowGrid.className.baseVal = 'flow-line flow-line-grid-feedin';
+        arrowGridHead.setAttribute('fill', '#198754');
+    } else {
+        elGridCard.classList.add('grid-drawing');
+        elGridCardLabel.textContent = '⚡ Netz';
+        elGridDir.textContent       = '↓ Netzbezug';
+        elGridW.className           = 'fs-4 fw-bold text-danger';
+        arrowGrid.className.baseVal = 'flow-line flow-line-grid-drawing';
+        arrowGridHead.setAttribute('fill', '#dc3545');
+    }
+
+    // PV → House arrow (active when PV produces)
+    arrowPvHouse.className.baseVal = 'flow-line ' +
+        (d.pvProductionW > 0 ? 'flow-line-active' : '');
+    arrowPvHouseHead.setAttribute('fill',
+        d.pvProductionW > 0 ? '#ffc107' : '#3a3a3a');
+
+    // ── Heat Pump ─────────────────────────────────────────────
+    elHpActual.textContent    = d.hotWaterTempActual.toFixed(1)    + ' °C';
+    elHpSetpoint.textContent  = d.hotWaterTempSetpoint.toFixed(1)  + ' °C';
+    elSvgHpTemp.textContent   = d.hotWaterTempActual.toFixed(1)    + '°C';
+
+    const hpStatusText = d.heatPumpStatus || 'Standby';
+    elHpStatus.textContent    = hpStatusText;
+    elSvgHpStatus.textContent = hpStatusText;
+
+    // Heat pump arrow – active when boost is on
+    const hpArrowColor = d.boostActive ? '#dc3545' : '#6c757d';
+    arrowHeatpump.setAttribute('stroke', hpArrowColor);
+    arrowHeatpumpHead.setAttribute('fill', hpArrowColor);
+
+    // Boost badge + SVG pulse (US-01-02)
+    elHeatpumpBorder.className.baseVal = '';
+    if (d.boostActive) {
+        elBoostBadge.textContent  = '🔥 Boost aktiv';
+        elBoostBadge.className    = 'badge bg-danger';
+        elHeatpumpBorder.classList.add('heatpump-pulse-red');
+    } else if (d.enerflowActive) {
+        elBoostBadge.textContent  = '✅ EnerFlow aktiv';
+        elBoostBadge.className    = 'badge bg-warning text-dark';
+        elHeatpumpBorder.classList.add('heatpump-pulse-orange');
+    } else {
+        elBoostBadge.textContent  = 'Manuell';
+        elBoostBadge.className    = 'badge bg-secondary';
+    }
+
+    // ── EnerFlow Toggle ───────────────────────────────────────
+    if (!toggleInFlight) {
+        elToggle.checked          = d.enerflowActive;
+        elToggleLabel.textContent = d.enerflowActive ? 'Aktiv' : 'Inaktiv';
+        elToggleLabel.className   = 'form-check-label fs-6 ms-2 ' +
+            (d.enerflowActive ? 'text-success' : 'text-muted');
+    }
+
+    // ── Savings ───────────────────────────────────────────────
+    elSavedKwh.textContent  = d.savedKwhToday.toFixed(2);
+    elSavedEuro.textContent = d.savedEuroToday.toFixed(2) + ' €';
+    elShowers.textContent   = d.possibleShowersToday;
+    if (document.activeElement !== elPriceInput) {
+        elPriceInput.value = d.electricityPriceCentPerKwh.toFixed(1);
+    }
+
+    // ── Freshness & Timestamp ─────────────────────────────────
+    const fresh = d.dataFreshness === 'FRESH';
+    elFreshness.textContent = fresh ? '●  Live' : '●  Veraltet';
+    elFreshness.className   = 'badge ' +
+        (fresh ? 'freshness-fresh' : 'freshness-stale');
+
+    const ts = new Date(d.lastSnapshotTime);
+    elLastUpdate.textContent = 'Zuletzt: ' + ts.toLocaleTimeString('de-DE');
+}
+
+// =============================================================
+// 4. ENERFLOW TOGGLE
+// =============================================================
+
+elToggle.addEventListener('change', async () => {
+    if (toggleInFlight) return;
+    toggleInFlight = true;
+    elToggle.disabled = true;
+
+    try {
+        const resp = await fetch(API_TOGGLE_URL, {
+            method: 'PATCH',
+            headers: authHeaders()
+        });
+
+        if (!resp.ok) {
+            console.error('Toggle failed:', resp.status);
+            // Revert the visual toggle since the server rejected it
+            elToggle.checked = !elToggle.checked;
+        }
+        // Next poll will sync the correct state from server
+    } catch (e) {
+        console.error('Toggle error:', e);
+        elToggle.checked = !elToggle.checked;
+    } finally {
+        toggleInFlight  = false;
+        elToggle.disabled = false;
+    }
+});
+
+// =============================================================
+// 5. HELPERS
+// =============================================================
+
+function formatWatts(w) {
+    return w >= 1000
+        ? (w / 1000).toFixed(2) + ' kW'
+        : w + ' W';
+}
+
+function markStale() {
+    elFreshness.textContent = '●  Keine Verbindung';
+    elFreshness.className   = 'badge freshness-stale';
+}
+
+function resetAllDisplays() {
+    const fields = [
+        elPvW, elPvKw, elBatPercent, elBatStatus,
+        elConsumptionW, elGridW, elGridDir,
+        elHpActual, elHpSetpoint, elHpStatus,
+        elSavedKwh, elSavedEuro, elShowers, elPrice,
+        elLastUpdate, elToggleLabel
+    ];
+    fields.forEach(el => { if (el) el.textContent = '–'; });
+    elFreshness.textContent = '●  –';
+    elFreshness.className   = 'badge bg-secondary';
+}
+
+// =============================================================
+// 6. INIT
+// =============================================================
+
+(function init() {
+    if (getToken()) {
+        startPolling();
+        loadPriceTimestamp();
+    } else {
+        loginModal.show();
+    }
+    // =============================================================
+// 7. ELECTRICITY PRICE SAVE (US-01-04)
+// =============================================================
+
+    elSavePriceBtn.addEventListener('click', async () => {
+        const newPrice = parseFloat(elPriceInput.value);
+
+        if (isNaN(newPrice) || newPrice <= 0) {
+            showPriceMsg('Ungültiger Wert.', 'text-danger');
+            return;
+        }
+
+        elSavePriceBtn.disabled = true;
+
+        try {
+            const resp = await fetch(
+                `/api/config/electricity-price?price=${newPrice}`,
+                { method: 'PATCH', headers: authHeaders() }
+            );
+
+            if (resp.ok) {
+                showPriceMsg('✓ Gespeichert', 'text-success');
+                await loadPriceTimestamp();
+            } else {
+                showPriceMsg('Fehler beim Speichern.', 'text-danger');
+            }
+        } catch (e) {
+            showPriceMsg('Server nicht erreichbar.', 'text-danger');
+        } finally {
+            elSavePriceBtn.disabled = false;
+        }
+    });
+
+    function showPriceMsg(msg, cssClass) {
+        elPriceSaveMsg.textContent  = msg;
+        elPriceSaveMsg.className    = cssClass;
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            elPriceSaveMsg.textContent = '';
+            elPriceSaveMsg.className   = '';
+        }, 3000);
+    }
+
+    async function loadPriceTimestamp() {
+        try {
+            const resp = await fetch('/api/config/electricity-price',
+                { headers: authHeaders() });
+            if (!resp.ok) return;
+
+            const data = await resp.json();
+            const price = parseFloat(data.priceCentPerKwh).toFixed(2).replace('.', ',');
+            const dt    = new Date(data.updatedAt);
+            const date  = dt.toLocaleDateString('de-DE',
+                { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const time  = dt.toLocaleTimeString('de-DE',
+                { hour: '2-digit', minute: '2-digit' });
+
+            elPriceLastSaved.textContent = `🕐 ${price} ct/kWh · ${date}, ${time} Uhr`;
+        } catch (e) {
+            // silently ignore
+        }
+    }
+
+})();
