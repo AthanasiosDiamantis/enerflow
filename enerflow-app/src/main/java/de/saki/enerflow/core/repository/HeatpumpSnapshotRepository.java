@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository for storing and retrieving heat pump snapshots.
@@ -19,4 +20,6 @@ public interface HeatpumpSnapshotRepository extends JpaRepository<HeatpumpSnapsh
     List<HeatpumpSnapshot> findByTimestampBetween(
             LocalDateTime from,
             LocalDateTime to);
+
+    Optional<HeatpumpSnapshot> findTopByOrderByTimestampDesc();
 }
