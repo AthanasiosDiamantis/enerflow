@@ -1,13 +1,7 @@
 package de.saki.enerflow.api.dashboard;
 
-import de.saki.enerflow.core.domain.BatterySnapshot;
-import de.saki.enerflow.core.domain.ControlAction;
-import de.saki.enerflow.core.domain.ControlLog;
-import de.saki.enerflow.core.domain.HeatpumpSnapshot;
-import de.saki.enerflow.core.repository.BatterySnapshotRepository;
-import de.saki.enerflow.core.repository.ControlLogRepository;
-import de.saki.enerflow.core.repository.EnerflowStateRepository;
-import de.saki.enerflow.core.repository.HeatpumpSnapshotRepository;
+import de.saki.enerflow.core.domain.*;
+import de.saki.enerflow.core.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,11 +40,6 @@ public class DashboardService {
      */
     private static final long STALE_THRESHOLD_MINUTES = 2;
 
-    /**
-     * Default electricity price if no config entry exists in DB yet.
-     */
-    private static final double DEFAULT_ELECTRICITY_PRICE_CENT = 28.0;
-
     // -----------------------------------------------------------------------
     // Repositories
     // -----------------------------------------------------------------------
@@ -59,17 +48,20 @@ public class DashboardService {
     private final HeatpumpSnapshotRepository heatpumpSnapshotRepository;
     private final EnerflowStateRepository enerflowStateRepository;
     private final ControlLogRepository controlLogRepository;
+    private final ElectricityPriceRepository electricityPriceRepository;
 
     public DashboardService(
             BatterySnapshotRepository batterySnapshotRepository,
             HeatpumpSnapshotRepository heatpumpSnapshotRepository,
             EnerflowStateRepository enerflowStateRepository,
-            ControlLogRepository controlLogRepository) {
+            ControlLogRepository controlLogRepository,
+            ElectricityPriceRepository electricityPriceRepository) {
 
         this.batterySnapshotRepository = batterySnapshotRepository;
         this.heatpumpSnapshotRepository = heatpumpSnapshotRepository;
         this.enerflowStateRepository = enerflowStateRepository;
         this.controlLogRepository = controlLogRepository;
+        this.electricityPriceRepository = electricityPriceRepository;
     }
 
     // -----------------------------------------------------------------------
@@ -132,7 +124,10 @@ public class DashboardService {
 
         // 8. Savings
         double savedKwhToday = calculateSavedKwhToday(todayLogs);
-        double savedEuroToday = savedKwhToday * DEFAULT_ELECTRICITY_PRICE_CENT / 100.0;
+        double price = electricityPriceRepository.findById(1)
+                .map(ElectricityPriceConfig::getPriceCentPerKwh)
+                .orElse(28.0);
+        double savedEuroToday = savedKwhToday * price / 100.0;
         int showers = (int) (savedKwhToday / KWH_PER_SHOWER);
 
         // 9. Data freshness
@@ -156,7 +151,7 @@ public class DashboardService {
                 savedKwhToday,
                 savedEuroToday,
                 showers,
-                DEFAULT_ELECTRICITY_PRICE_CENT,
+                price,
                 snapshotTime,
                 freshness
         );

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnerFlow Dashboard</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.8/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body class="bg-dark text-light">
+
+<!-- ================================================================
+     LOGIN MODAL
+     ================================================================ -->
+<div class="modal fade" id="loginModal" tabindex="-1"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold">⚡ EnerFlow</h5>
+            </div>
+            <div class="modal-body">
+                <div id="loginError" class="alert alert-danger d-none"></div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#b0b8c4;">Benutzername</label>
+                    <input type="text" id="loginUsername"
+                           class="form-control bg-secondary text-light border-0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#b0b8c4;">Passwort</label>
+                    <input type="password" id="loginPassword"
+                           class="form-control bg-secondary text-light border-0">
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-success w-100" id="loginBtn">
+                    Anmelden
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     NAVBAR
+     ================================================================ -->
+<nav class="navbar navbar-dark bg-black border-bottom border-secondary px-3">
+    <span class="navbar-brand fw-bold fs-5">⚡ EnerFlow</span>
+    <div class="d-flex align-items-center gap-3">
+        <span id="freshnessIndicator" class="badge bg-secondary">● –</span>
+        <small id="lastUpdateLabel" style="color:#8a94a0;">–</small>
+        <button class="btn btn-outline-secondary btn-sm" id="logoutBtn">Abmelden</button>
+    </div>
+</nav>
+
+<!-- ================================================================
+     MAIN CONTENT
+     ================================================================ -->
+<div class="container-fluid p-3">
+
+    <!-- ── ROW 1: Energy Flow Diagram ────────────────────────────── -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card bg-black border-secondary">
+                <div class="card-body p-2">
+                    <svg id="energyFlowSvg"
+                         viewBox="0 0 700 330"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="w-100"
+                         style="min-height:260px; max-height:400px;">
+
+                        <!-- PV Node -->
+                        <g id="pvNode">
+                            <rect x="10" y="88" width="145" height="108"
+                                  rx="8" fill="#1a1a2e" stroke="#ffc107" stroke-width="2"/>
+                            <text x="82" y="140" text-anchor="middle" font-size="54">☀️</text>
+                            <text x="82" y="168" text-anchor="middle"
+                                  fill="#ffc107" font-size="13" font-weight="bold">PV-Produktion
+                            </text>
+                            <text id="svgPvW" x="82" y="185"
+                                  text-anchor="middle" fill="#e0e6ed" font-size="12">– W
+                            </text>
+                        </g>
+
+                        <!-- Arrow PV → House -->
+                        <line id="arrowPvHouse"
+                              x1="157" y1="142" x2="282" y2="142"
+                              stroke="#3a3a3a" stroke-width="3"
+                              stroke-dasharray="6,4" class="flow-line"/>
+                        <polygon id="arrowPvHouseHead"
+                                 points="280,135 298,142 280,149" fill="#3a3a3a"/>
+
+                        <!-- House Node -->
+                        <g id="houseNode">
+                            <rect x="298" y="78" width="144" height="112"
+                                  rx="8" fill="#1a1a2e" stroke="#6c757d" stroke-width="2"/>
+                            <text x="370" y="132" text-anchor="middle" font-size="54">🏠</text>
+                            <text x="370" y="160" text-anchor="middle"
+                                  fill="#c8d0d8" font-size="13" font-weight="bold">Verbrauch
+                            </text>
+                            <text id="svgConsumptionW" x="370" y="178"
+                                  text-anchor="middle" fill="#e0e6ed" font-size="12">– W
+                            </text>
+                        </g>
+
+                        <!-- Arrow House → Grid -->
+                        <line id="arrowGrid"
+                              x1="444" y1="142" x2="556" y2="142"
+                              stroke="#3a3a3a" stroke-width="3"
+                              stroke-dasharray="6,4" class="flow-line"/>
+                        <polygon id="arrowGridHead"
+                                 points="554,135 572,142 554,149" fill="#3a3a3a"/>
+
+                        <!-- Grid Node -->
+                        <g id="gridNode">
+                            <rect x="572" y="88" width="120" height="108"
+                                  rx="8" fill="#1a1a2e" stroke="#6c757d" stroke-width="2"/>
+                            <text x="632" y="140" text-anchor="middle" font-size="54">⚡</text>
+                            <text x="632" y="166" text-anchor="middle"
+                                  fill="#c8d0d8" font-size="13" font-weight="bold">Netz
+                            </text>
+                            <text id="svgGridW" x="632" y="183"
+                                  text-anchor="middle" fill="#e0e6ed" font-size="12">– W
+                            </text>
+                        </g>
+
+                        <!-- Arrow House ↔ Battery (vertical up) -->
+                        <line id="arrowBattery"
+                              x1="370" y1="78" x2="370" y2="72"
+                              stroke="#3a3a3a" stroke-width="3"
+                              stroke-dasharray="6,4" class="flow-line"/>
+
+                        <!-- Battery Node -->
+                        <g id="batteryNode">
+                            <rect x="298" y="4" width="144" height="68"
+                                  rx="8" fill="#1a1a2e" stroke="#6c757d"
+                                  stroke-width="2" id="batteryBorder"/>
+                            <text x="345" y="50" text-anchor="middle" font-size="46">🔋</text>
+                            <text id="svgBatLabel" x="405" y="28"
+                                  text-anchor="middle" fill="#c8d0d8"
+                                  font-size="12" font-weight="bold">Batterie
+                            </text>
+                            <text id="svgSoc" x="405" y="52"
+                                  text-anchor="middle" fill="#e0e6ed" font-size="15" font-weight="bold">–%
+                            </text>
+                        </g>
+
+                        <!-- Arrow House → Heat Pump (vertical down) -->
+                        <line id="arrowHeatpump"
+                              x1="370" y1="190" x2="370" y2="248"
+                              stroke="#6c757d" stroke-width="3"
+                              stroke-dasharray="6,4" class="flow-line"/>
+                        <polygon id="arrowHeatpumpHead"
+                                 points="363,246 370,264 377,246" fill="#6c757d"/>
+
+                        <!-- Heat Pump Node -->
+                        <g id="heatpumpSvgNode">
+                            <rect x="258" y="264" width="224" height="60"
+                                  rx="8" fill="#1a1a2e" stroke="#6c757d"
+                                  stroke-width="2" id="heatpumpBorder"/>
+                            <text id="svgHpIcon" x="305" y="304"
+                                  text-anchor="middle" font-size="44">🌡️
+                            </text>
+                            <text id="svgHpTemp" x="400" y="288"
+                                  text-anchor="middle" fill="#e0e6ed" font-size="15" font-weight="bold">–°C
+                            </text>
+                            <text id="svgHpStatus" x="400" y="308"
+                                  text-anchor="middle" fill="#a0a8b4" font-size="11">–
+                            </text>
+                        </g>
+
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── ROW 2: Metric Cards ────────────────────────────────────── -->
+    <div class="row g-3 mb-3">
+
+        <!-- PV -->
+        <div class="col-6 col-md-3">
+            <div class="card bg-black border-warning h-100">
+                <div class="card-body text-center py-3">
+                    <div class="mb-1" style="color:#ffc107; font-size:0.9rem; font-weight:600;">
+                        ☀️ PV-Produktion
+                    </div>
+                    <div class="fs-4 fw-bold text-warning" id="pvProductionW">–</div>
+                    <div style="color:#a0a8b4; font-size:0.85rem;" id="pvProductionKw">–</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Battery -->
+        <div class="col-6 col-md-3">
+            <div class="card bg-black border-secondary h-100" id="batteryCard">
+                <div class="card-body text-center py-3">
+                    <div class="mb-1" style="font-size:0.9rem; font-weight:600; color:#a0a8b4;"
+                         id="batteryCardLabel">🔋 Batterie
+                    </div>
+                    <div class="fs-4 fw-bold" id="batteryChargePercent">–</div>
+                    <div style="color:#a0a8b4; font-size:0.85rem;" id="batteryStatus">–</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Consumption -->
+        <div class="col-6 col-md-3">
+            <div class="card bg-black border-secondary h-100">
+                <div class="card-body text-center py-3">
+                    <div class="mb-1" style="color:#a0a8b4; font-size:0.9rem; font-weight:600;">
+                        🏠 Verbrauch
+                    </div>
+                    <div class="fs-4 fw-bold text-light" id="consumptionW">–</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid -->
+        <div class="col-6 col-md-3">
+            <div class="card bg-black border-secondary h-100" id="gridCard">
+                <div class="card-body text-center py-3">
+                    <div class="mb-1" style="font-size:0.9rem; font-weight:600; color:#a0a8b4;"
+                         id="gridCardLabel">⚡ Netz
+                    </div>
+                    <div class="fs-4 fw-bold" id="gridFeedInW">–</div>
+                    <div style="color:#a0a8b4; font-size:0.85rem;" id="gridDirection">–</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── ROW 3: Heat Pump + EnerFlow + Savings ─────────────────── -->
+    <div class="row g-3">
+
+        <!-- Heat Pump -->
+        <div class="col-12 col-md-4">
+            <div class="card bg-black border-secondary h-100">
+                <div class="card-header border-secondary
+                            d-flex justify-content-between align-items-center"
+                     style="color:#c8d0d8; font-weight:600;">
+                    <span>🌡️ Wärmepumpe</span>
+                    <span id="boostBadge" class="badge bg-secondary">–</span>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div style="color:#8a94a0; font-size:0.85rem; margin-bottom:4px;">
+                                Ist-Temperatur
+                            </div>
+                            <div class="fs-4 fw-bold" style="color:#5bc8f5;"
+                                 id="hotWaterTempActual">–
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div style="color:#8a94a0; font-size:0.85rem; margin-bottom:4px;">
+                                Soll-Temperatur
+                            </div>
+                            <div class="fs-4 fw-bold text-light"
+                                 id="hotWaterTempSetpoint">–
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="border-secondary my-2">
+                    <div class="text-center" style="color:#8a94a0; font-size:0.85rem;"
+                         id="heatPumpStatus">–
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EnerFlow Control -->
+        <div class="col-12 col-md-4">
+            <div class="card bg-black border-secondary h-100">
+                <div class="card-header border-secondary"
+                     style="color:#c8d0d8; font-weight:600;">⚡ EnerFlow Steuerung
+                </div>
+                <div class="card-body d-flex flex-column
+                             justify-content-center align-items-center gap-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox"
+                               id="enerflowToggle" role="switch"
+                               style="width:3rem; height:1.5rem; cursor:pointer">
+                        <label class="form-check-label fs-6 ms-2"
+                               for="enerflowToggle"
+                               id="enerflowToggleLabel"
+                               style="color:#c8d0d8;">–</label>
+                    </div>
+                    <div class="text-center" style="color:#7a8490; font-size:0.82rem;">
+                        Aktiviert die Wärmepumpe automatisch<br>
+                        bei PV-Überschuss &gt; 300 W und Batterie &gt; 90 %
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Savings -->
+        <div class="col-12 col-md-4">
+            <div class="card bg-black border-success h-100">
+                <div class="card-header border-success"
+                     style="color:#2dbd76; font-weight:600;">
+                    💰 Einsparungen heute
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div style="color:#c8d0d8; font-size:0.85rem;
+                                font-weight:600; margin-bottom:4px;">kWh
+                            </div>
+                            <div class="fs-4 fw-bold text-success" id="savedKwhToday">–</div>
+                        </div>
+                        <div class="col-4">
+                            <div style="color:#c8d0d8; font-size:0.85rem;
+                                font-weight:600; margin-bottom:4px;">Euro
+                            </div>
+                            <div class="fs-4 fw-bold text-success" id="savedEuroToday">–</div>
+                        </div>
+                        <div class="col-4">
+                            <div style="color:#c8d0d8; font-size:0.85rem;
+                                font-weight:600; margin-bottom:4px;">🚿 Duschen
+                            </div>
+                            <div class="fs-4 fw-bold text-success"
+                                 id="possibleShowersToday">–
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="border-secondary my-2">
+                    <!-- Electricity price input (US-01-04) -->
+                    <div class="d-flex align-items-center gap-2">
+                        <label style="color:#a0a8b4; font-size:0.85rem; white-space:nowrap;">
+                            Strompreis:
+                        </label>
+                        <input type="number"
+                               id="electricityPriceInput"
+                               min="0.1" max="999" step="0.1"
+                               style="width:80px; font-size:0.85rem;"
+                               class="form-control form-control-sm bg-secondary
+                              text-light border-0 text-center">
+                        <span style="color:#a0a8b4; font-size:0.85rem;">ct/kWh</span>
+                        <button id="savePriceBtn"
+                                class="btn btn-outline-success btn-sm ms-auto"
+                                style="font-size:0.8rem; white-space:nowrap;">
+                            Speichern
+                        </button>
+                    </div>
+                    <div id="priceSaveMsg" style="font-size:0.78rem; min-height:1rem;
+                              margin-top:4px; text-align:right;">
+                    </div>
+                    <div id="priceLastSaved" style="font-size:0.78rem; color:#6a7480;
+                                 margin-top:2px; text-align:right;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script th:src="@{/webjars/bootstrap/5.3.8/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/dashboard.js}"></script>
+</body>
+</html>
