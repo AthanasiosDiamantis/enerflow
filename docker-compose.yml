@@ -11,7 +11,32 @@ services:
       - "5432:5432"
     volumes:
       - enerflow-postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enerflow -d enerflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ./enerflow-app
+    container_name: enerflow-app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/enerflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      HEATPUMP_PASSWORD: ${HEATPUMP_PASSWORD}
+      SONNEN_HOST: ${SONNEN_HOST}
+      SONNEN_API_TOKEN: ${SONNEN_API_TOKEN}
+      ENERFLOW_DEFAULT_ADMIN_PASSWORD: ${ENERFLOW_DEFAULT_ADMIN_PASSWORD}
+      ENERFLOW_JWT_SECRET: ${ENERFLOW_JWT_SECRET}
+      ENERFLOW_JWT_EXPIRATION_MS: ${ENERFLOW_JWT_EXPIRATION_MS}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
 
 volumes:
   enerflow-postgres-data:
