@@ -48,7 +48,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<Object> login(@RequestBody LoginRequest request) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -58,8 +58,9 @@ public class AuthController {
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());
             String token = jwtService.generateToken(userDetails);
+            String role = userDetails.getAuthorities().iterator().next().getAuthority();
 
-            return ResponseEntity.ok(new LoginResponse(token));
+            return ResponseEntity.ok(new LoginResponse(token, role));
 
         } catch (LockedException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -73,6 +74,6 @@ public class AuthController {
     }
 
     public record LoginRequest(String username, String password) {}
-    public record LoginResponse(String token) {}
+    public record LoginResponse(String token, String role) {}
     public record ErrorResponse(String message) {}
 }
