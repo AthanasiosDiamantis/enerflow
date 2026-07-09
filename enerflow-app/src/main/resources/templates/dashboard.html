@@ -406,6 +406,70 @@
             </div>
         </div>
     </div>
+    <!-- ── ROW 5: Admin User Management (ADMIN only) ──────────────── -->
+    <div class="row mt-3 d-none" id="adminUsersSection">
+        <div class="col-12">
+            <div class="card bg-black border-info">
+                <div class="card-header border-info"
+                     style="color:#5bc8f5; font-weight:600;">
+                    👤 Benutzerverwaltung (Admin)
+                </div>
+                <div class="card-body">
+
+                    <!-- User list -->
+                    <div class="table-responsive mb-3">
+                        <table class="table table-dark table-sm align-middle mb-0">
+                            <thead>
+                            <tr style="color:#a0a8b4; font-size:0.85rem;">
+                                <th>Benutzername</th>
+                                <th>Rolle</th>
+                                <th>Status</th>
+                                <th>Erstellt</th>
+                                <th>Letzter Login</th>
+                            </tr>
+                            </thead>
+                            <tbody id="adminUsersTableBody">
+                            <!-- filled dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr class="border-secondary my-2">
+
+                    <!-- Create user form -->
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-3">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">Benutzername</label>
+                            <input type="text" id="adminNewUsername"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">Passwort</label>
+                            <input type="password" id="adminNewPassword"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">Rolle</label>
+                            <select id="adminNewRole"
+                                    class="form-select form-select-sm bg-secondary text-light border-0">
+                                <option value="ROLE_USER">Hausbesitzer (USER)</option>
+                                <option value="ROLE_MANAGER">Anlagenverwalter (MANAGER)</option>
+                                <option value="ROLE_ADMIN">Administrator (ADMIN)</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3 d-flex align-items-end">
+                            <button id="adminCreateUserBtn"
+                                    class="btn btn-outline-info btn-sm w-100">
+                                Benutzer anlegen
+                            </button>
+                        </div>
+                    </div>
+                    <div id="adminUserMsg" style="font-size:0.78rem; margin-top:6px;"></div>
+
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div>
 

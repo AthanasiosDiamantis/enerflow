@@ -13,6 +13,7 @@
 const API_STATUS_URL   = '/api/dashboard/status';
 const API_LOGIN_URL    = '/api/auth/login';
 const API_TOGGLE_URL   = '/api/enerflow/toggle';
+const API_ADMIN_USERS_URL = '/api/admin/users';
 const POLL_INTERVAL_MS = 10_000;
 const TOKEN_KEY        = 'enerflow_jwt';
 const API_DEVICE_CONFIG_URL = '/api/config/device';
@@ -23,6 +24,16 @@ let pollTimer      = null;
 let toggleInFlight = false; // prevents double-click on toggle
 
 // ── DOM references ─────────────────────────────────────────────
+
+// Admin user management (role-gated)
+const adminUsersSection    = document.getElementById('adminUsersSection');
+const adminUsersTableBody  = document.getElementById('adminUsersTableBody');
+const adminNewUsername     = document.getElementById('adminNewUsername');
+const adminNewPassword     = document.getElementById('adminNewPassword');
+const adminNewRole         = document.getElementById('adminNewRole');
+const adminCreateUserBtn   = document.getElementById('adminCreateUserBtn');
+const adminUserMsg         = document.getElementById('adminUserMsg');
+
 const loginModal       = new bootstrap.Modal(document.getElementById('loginModal'));
 const loginBtn         = document.getElementById('loginBtn');
 const logoutBtn        = document.getElementById('logoutBtn');
@@ -126,9 +137,16 @@ function clearRole() {
 function applyRoleVisibility() {
     const role = getRole();
     const isManagerOrAdmin = role === 'ROLE_MANAGER' || role === 'ROLE_ADMIN';
+    const isAdmin = role === 'ROLE_ADMIN';
+
     managerConfigSection.classList.toggle('d-none', !isManagerOrAdmin);
+    adminUsersSection.classList.toggle('d-none', !isAdmin);
+
     if (isManagerOrAdmin) {
         loadDeviceConfig();
+    }
+    if (isAdmin) {
+        loadUsers();
     }
 }
 
@@ -148,6 +166,103 @@ async function loadDeviceConfig() {
         console.error('Failed to load device config:', e);
     }
 }
+
+async function loadUsers() {
+    try {
+        const resp = await fetch(API_ADMIN_USERS_URL, { headers: authHeaders() });
+        if (!resp.ok) return;
+
+        const users = await resp.json();
+        renderUsersTable(users);
+    } catch (e) {
+        console.error('Failed to load users:', e);
+    }
+}
+
+function renderUsersTable(users) {
+    adminUsersTableBody.innerHTML = users.map(u => {
+        const statusBadge = !u.enabled
+            ? '<span class="badge bg-secondary">Deaktiviert</span>'
+            : u.locked
+                ? '<span class="badge bg-danger">Gesperrt</span>'
+                : '<span class="badge bg-success">Aktiv</span>';
+
+        const created  = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE') : '–';
+        const lastLogin = u.lastLogin ? new Date(u.lastLogin).toLocaleString('de-DE') : '– (noch nie)';
+
+        return `
+            <tr>
+                <td>${escapeHtml(u.username)}</td>
+                <td>${formatRole(u.role)}</td>
+                <td>${statusBadge}</td>
+                <td style="color:#8a94a0; font-size:0.85rem;">${created}</td>
+                <td style="color:#8a94a0; font-size:0.85rem;">${lastLogin}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function formatRole(role) {
+    const map = {
+        'ROLE_USER':    'Hausbesitzer',
+        'ROLE_MANAGER': 'Anlagenverwalter',
+        'ROLE_ADMIN':   'Administrator'
+    };
+    return map[role] || role;
+}
+
+// Basic escaping to avoid the username breaking table markup
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function showAdminUserMsg(msg, cssClass) {
+    adminUserMsg.textContent = msg;
+    adminUserMsg.className   = cssClass;
+    setTimeout(() => {
+        adminUserMsg.textContent = '';
+        adminUserMsg.className   = '';
+    }, 4000);
+}
+
+adminCreateUserBtn.addEventListener('click', async () => {
+    const username = adminNewUsername.value.trim();
+    const password = adminNewPassword.value;
+    const role     = adminNewRole.value;
+
+    if (!username || !password) {
+        showAdminUserMsg('Bitte Benutzername und Passwort ausfüllen.', 'text-danger');
+        return;
+    }
+
+    adminCreateUserBtn.disabled = true;
+    try {
+        const resp = await fetch(API_ADMIN_USERS_URL, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ username, password, role })
+        });
+
+        if (resp.status === 201) {
+            showAdminUserMsg('✓ Benutzer angelegt', 'text-success');
+            adminNewUsername.value = '';
+            adminNewPassword.value = '';
+            await loadUsers();
+        } else if (resp.status === 409) {
+            showAdminUserMsg('Benutzername bereits vergeben.', 'text-danger');
+        } else if (resp.status === 400) {
+            showAdminUserMsg('Ungültige Eingabe (Passwort min. 8 Zeichen?).', 'text-danger');
+        } else {
+            showAdminUserMsg('Fehler beim Anlegen.', 'text-danger');
+        }
+    } catch (e) {
+        showAdminUserMsg('Server nicht erreichbar.', 'text-danger');
+    } finally {
+        adminCreateUserBtn.disabled = false;
+    }
+});
 
 function showCfgMsg(msg, cssClass) {
     cfgSaveMsg.textContent = msg;
@@ -249,6 +364,7 @@ logoutBtn.addEventListener('click', () => {
     clearRole();
     resetAllDisplays();
     managerConfigSection.classList.add('d-none');
+    adminUsersSection.classList.add('d-none');
     loginUsername.value = '';
     loginPassword.value = '';
     loginModal.show();
@@ -280,6 +396,7 @@ async function fetchAndUpdate() {
             clearRole();
             resetAllDisplays();
             managerConfigSection.classList.add('d-none');
+            adminUsersSection.classList.add('d-none');
             loginModal.show();
             return;
         }
