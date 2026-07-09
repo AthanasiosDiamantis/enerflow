@@ -15,6 +15,8 @@ const API_LOGIN_URL    = '/api/auth/login';
 const API_TOGGLE_URL   = '/api/enerflow/toggle';
 const POLL_INTERVAL_MS = 10_000;
 const TOKEN_KEY        = 'enerflow_jwt';
+const API_DEVICE_CONFIG_URL = '/api/config/device';
+const ROLE_KEY = 'enerflow_role';
 
 // ── State ──────────────────────────────────────────────────────
 let pollTimer      = null;
@@ -65,6 +67,17 @@ const elPriceLastSaved = document.getElementById('priceLastSaved');
 const elFreshness      = document.getElementById('freshnessIndicator');
 const elLastUpdate     = document.getElementById('lastUpdateLabel');
 
+// Manager configuration (role-gated)
+const managerConfigSection = document.getElementById('managerConfigSection');
+const cfgPvThreshold       = document.getElementById('cfgPvThreshold');
+const cfgSocThreshold      = document.getElementById('cfgSocThreshold');
+const cfgSetpointElevated  = document.getElementById('cfgSetpointElevated');
+const cfgSetpointNormal    = document.getElementById('cfgSetpointNormal');
+const cfgTankVolume        = document.getElementById('cfgTankVolume');
+const cfgRetentionDays     = document.getElementById('cfgRetentionDays');
+const saveConfigBtn        = document.getElementById('saveConfigBtn');
+const cfgSaveMsg           = document.getElementById('cfgSaveMsg');
+
 // SVG elements
 const elSvgPvW         = document.getElementById('svgPvW');
 const elSvgConsW       = document.getElementById('svgConsumptionW');
@@ -98,6 +111,84 @@ function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
 }
 
+function getRole() {
+    return localStorage.getItem(ROLE_KEY);
+}
+
+function saveRole(role) {
+    localStorage.setItem(ROLE_KEY, role);
+}
+
+function clearRole() {
+    localStorage.removeItem(ROLE_KEY);
+}
+
+function applyRoleVisibility() {
+    const role = getRole();
+    const isManagerOrAdmin = role === 'ROLE_MANAGER' || role === 'ROLE_ADMIN';
+    managerConfigSection.classList.toggle('d-none', !isManagerOrAdmin);
+    if (isManagerOrAdmin) {
+        loadDeviceConfig();
+    }
+}
+
+async function loadDeviceConfig() {
+    try {
+        const resp = await fetch(API_DEVICE_CONFIG_URL, { headers: authHeaders() });
+        if (!resp.ok) return;
+
+        const data = await resp.json();
+        cfgPvThreshold.value      = data.pvSurplusThresholdWatts;
+        cfgSocThreshold.value     = data.batterySocThresholdPercent;
+        cfgSetpointElevated.value = data.hotwaterSetpointElevatedCelsius;
+        cfgSetpointNormal.value   = data.hotwaterSetpointNormalCelsius;
+        cfgTankVolume.value       = data.hotwaterTankVolumeLiters;
+        cfgRetentionDays.value    = data.snapshotRetentionDays;
+    } catch (e) {
+        console.error('Failed to load device config:', e);
+    }
+}
+
+function showCfgMsg(msg, cssClass) {
+    cfgSaveMsg.textContent = msg;
+    cfgSaveMsg.className   = cssClass;
+    setTimeout(() => {
+        cfgSaveMsg.textContent = '';
+        cfgSaveMsg.className   = '';
+    }, 3000);
+}
+
+saveConfigBtn.addEventListener('click', async () => {
+    const payload = {
+        pvSurplusThresholdWatts: parseInt(cfgPvThreshold.value, 10),
+        batterySocThresholdPercent: parseInt(cfgSocThreshold.value, 10),
+        hotwaterSetpointElevatedCelsius: parseFloat(cfgSetpointElevated.value),
+        hotwaterSetpointNormalCelsius: parseFloat(cfgSetpointNormal.value),
+        hotwaterTankVolumeLiters: parseFloat(cfgTankVolume.value),
+        snapshotRetentionDays: parseInt(cfgRetentionDays.value, 10)
+    };
+
+    saveConfigBtn.disabled = true;
+    try {
+        const resp = await fetch(API_DEVICE_CONFIG_URL, {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+            showCfgMsg('✓ Gespeichert', 'text-success');
+            await loadDeviceConfig();
+        } else {
+            showCfgMsg('Fehler: Bitte Eingaben prüfen.', 'text-danger');
+        }
+    } catch (e) {
+        showCfgMsg('Server nicht erreichbar.', 'text-danger');
+    } finally {
+        saveConfigBtn.disabled = false;
+    }
+});
+
 function authHeaders() {
     return {
         'Content-Type': 'application/json',
@@ -130,9 +221,11 @@ loginBtn.addEventListener('click', async () => {
 
         const data = await resp.json();
         saveToken(data.token);
+        saveRole(data.role);
         loginError.classList.add('d-none');
         loginModal.hide();
         startPolling();
+        applyRoleVisibility();
 
     } catch (e) {
         showLoginError('Server nicht erreichbar.');
@@ -153,7 +246,9 @@ function showLoginError(msg) {
 logoutBtn.addEventListener('click', () => {
     stopPolling();
     clearToken();
+    clearRole();
     resetAllDisplays();
+    managerConfigSection.classList.add('d-none');
     loginUsername.value = '';
     loginPassword.value = '';
     loginModal.show();
@@ -180,10 +275,11 @@ async function fetchAndUpdate() {
         const resp = await fetch(API_STATUS_URL, { headers: authHeaders() });
 
         if (resp.status === 401) {
-            // Token expired – force re-login
             stopPolling();
             clearToken();
+            clearRole();
             resetAllDisplays();
+            managerConfigSection.classList.add('d-none');
             loginModal.show();
             return;
         }
@@ -395,6 +491,7 @@ function resetAllDisplays() {
     if (getToken()) {
         startPolling();
         loadPriceTimestamp();
+        applyRoleVisibility();
     } else {
         loginModal.show();
     }

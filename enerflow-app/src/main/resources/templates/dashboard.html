@@ -355,6 +355,58 @@
         </div>
 
     </div>
+    <!-- ── ROW 4: Manager Configuration (MANAGER/ADMIN only) ─────── -->
+    <div class="row mt-3 d-none" id="managerConfigSection">
+        <div class="col-12">
+            <div class="card bg-black border-warning">
+                <div class="card-header border-warning"
+                     style="color:#ffc107; font-weight:600;">
+                    🛠️ Gerätekonfiguration (Manager)
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-2">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">PV-Schwelle (W)</label>
+                            <input type="number" id="cfgPvThreshold" min="1" step="1"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">Batterie-SOC (%)</label>
+                            <input type="number" id="cfgSocThreshold" min="0" max="100" step="1"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">WW-Soll erhöht (°C)</label>
+                            <input type="number" id="cfgSetpointElevated" min="30" max="65" step="0.5"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">WW-Soll normal (°C)</label>
+                            <input type="number" id="cfgSetpointNormal" min="30" max="65" step="0.5"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">Tankvolumen (L)</label>
+                            <input type="number" id="cfgTankVolume" min="1" step="1"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label style="color:#a0a8b4; font-size:0.8rem;">Aufbewahrung (Tage)</label>
+                            <input type="number" id="cfgRetentionDays" min="1" step="1"
+                                   class="form-control form-control-sm bg-secondary text-light border-0">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+                        <div id="cfgSaveMsg" style="font-size:0.78rem;"></div>
+                        <button id="saveConfigBtn" class="btn btn-outline-warning btn-sm">
+                            Konfiguration speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script th:src="@{/webjars/bootstrap/5.3.8/js/bootstrap.bundle.min.js}"></script>
