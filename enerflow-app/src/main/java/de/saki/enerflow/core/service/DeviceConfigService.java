@@ -1,9 +1,13 @@
 package de.saki.enerflow.core.service;
 
+import de.saki.enerflow.adapter.web.dto.DeviceConfigDto;
+import de.saki.enerflow.core.domain.DeviceConfig;
 import de.saki.enerflow.core.repository.DeviceConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 /**
  * Provides typed access to runtime-configurable EnerFlow parameters
@@ -92,5 +96,36 @@ public class DeviceConfigService {
                 });
     }
 
+    public DeviceConfigDto getAll() {
+        return new DeviceConfigDto(
+                getPvSurplusThresholdWatts(),
+                getBatterySocThresholdPercent(),
+                getHotwaterSetpointElevatedCelsius(),
+                getHotwaterSetpointNormalCelsius(),
+                getHotwaterTankVolumeLiters(),
+                getSnapshotRetentionDays()
+        );
+    }
+
+    public void updateConfig(DeviceConfigDto dto) {
+        save(KEY_PV_SURPLUS_THRESHOLD, String.valueOf(dto.pvSurplusThresholdWatts()));
+        save(KEY_BATTERY_SOC_THRESHOLD, String.valueOf(dto.batterySocThresholdPercent()));
+        save(KEY_HOTWATER_SETPOINT_ELEVATED, String.valueOf(dto.hotwaterSetpointElevatedCelsius()));
+        save(KEY_HOTWATER_SETPOINT_NORMAL, String.valueOf(dto.hotwaterSetpointNormalCelsius()));
+        save(KEY_TANK_VOLUME_LITERS, String.valueOf(dto.hotwaterTankVolumeLiters()));
+        save(KEY_SNAPSHOT_RETENTION_DAYS, String.valueOf(dto.snapshotRetentionDays()));
+    }
+
+    private void save(String key, String value) {
+        DeviceConfig config = repository.findById(key).orElseGet(() -> {
+            DeviceConfig fresh = new DeviceConfig();
+            fresh.setConfigKey(key);
+            return fresh;
+        });
+        config.setConfigValue(value);
+        config.setLastUpdated(LocalDateTime.now());
+        repository.save(config);
+        log.info("Config key '{}' updated to '{}'", key, value);
+    }
 
 }

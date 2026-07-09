@@ -29,6 +29,7 @@ logging:
   level:
     de.saki.enerflow: DEBUG
     org.java_websocket: DEBUG
+    org.springframework.security: TRACE
 
 # sonnenBatterie local REST API settings
 sonnen:
